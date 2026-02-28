@@ -3,21 +3,137 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rekap Keterlambatan Kas</title>
+    <title>Rekap Keterlambatan Kas Himpunan</title>
     <style>
-        body { font-family: Arial, sans-serif; padding: 20px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
-        th { background-color: #f4f4f4; }
+        /* Menggunakan CSS Variables untuk memudahkan manajemen warna (Color Palette) */
+        :root {
+            --bg-color: #f4f7f6;
+            --text-color: #333333;
+            --card-bg: #ffffff;
+            --border-color: #e0e0e0;
+            --header-bg: #4a90e2;
+            --header-text: #ffffff;
+            --accent-color: #e74c3c; /* Warna merah untuk menyorot tagihan */
+        }
+
+        /* Otomatis mendeteksi Dark Mode dari pengaturan HP/Laptop pengguna */
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg-color: #121212;
+                --text-color: #e0e0e0;
+                --card-bg: #1e1e1e;
+                --border-color: #333333;
+                --header-bg: #2c3e50;
+                --header-text: #e0e0e0;
+                --accent-color: #ff6b6b;
+            }
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            padding: 20px;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background-color: var(--card-bg);
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        }
+
+        h2 {
+            text-align: center;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        p.subtitle {
+            text-align: center;
+            margin-bottom: 25px;
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+
+        /* Membuat tabel bisa digeser (scroll) ke samping di layar HP */
+        .table-responsive {
+            overflow-x: auto;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            white-space: nowrap; /* Mencegah teks turun ke bawah dan merusak layout */
+        }
+
+        th, td {
+            padding: 15px 20px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th {
+            background-color: var(--header-bg);
+            color: var(--header-text);
+            font-weight: 500;
+            text-transform: uppercase;
+            font-size: 0.85em;
+            letter-spacing: 0.5px;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tbody tr:hover {
+            background-color: rgba(0, 0, 0, 0.02);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            tbody tr:hover {
+                background-color: rgba(255, 255, 255, 0.05);
+            }
+        }
+
+        /* Class khusus untuk menyorot angka tagihan agar lebih tegas */
+        .text-danger {
+            color: var(--accent-color);
+            font-weight: bold;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 30px;
+            font-style: italic;
+            opacity: 0.7;
+        }
     </style>
 </head>
 <body>
 
-    <h2>Daftar Keterlambatan Kas Himpunan</h2>
-    <p>Data di bawah ini tersinkronisasi secara otomatis.</p>
+    <div class="container">
+        <h2>Daftar Keterlambatan Kas</h2>
+        <p class="subtitle">Data di bawah ini tersinkronisasi secara otomatis.</p>
 
-    <table id="tabel-data">
-        </table>
+        <div class="table-responsive">
+            <table id="tabel-data">
+                <div id="loading-text" class="loading">Memuat data secara real-time...</div>
+            </table>
+        </div>
+    </div>
 
     <script>
         // GANTI URL DI BAWAH INI DENGAN LINK CSV DARI GOOGLE SHEETS ANDA
@@ -26,31 +142,47 @@
         fetch(csvUrl)
             .then(response => response.text())
             .then(data => {
+                document.getElementById('loading-text').style.display = 'none';
                 const rows = data.split('\n');
                 let tableHTML = '';
                 
                 rows.forEach((row, index) => {
-                    // Memisahkan data berdasarkan koma (CSV)
                     const columns = row.split(','); 
                     
-                    if (columns.length > 1) { // Menghindari baris kosong
-                        tableHTML += '<tr>';
-                        columns.forEach(col => {
-                            if (index === 0) {
-                                // Baris pertama dijadikan Header (th)
-                                tableHTML += `<th>${col.replace(/"/g, '')}</th>`;
-                            } else {
-                                // Baris selanjutnya dijadikan Data (td)
-                                tableHTML += `<td>${col.replace(/"/g, '')}</td>`;
-                            }
-                        });
-                        tableHTML += '</tr>';
+                    if (columns.length > 1 && row.trim() !== '') {
+                        if (index === 0) {
+                            // Membuat Header Tabel
+                            tableHTML += '<thead><tr>';
+                            columns.forEach(col => {
+                                tableHTML += `<th>${col.replace(/"/g, '').trim()}</th>`;
+                            });
+                            tableHTML += '</tr></thead><tbody>';
+                        } else {
+                            // Membuat Isi Tabel
+                            tableHTML += '<tr>';
+                            columns.forEach((col, colIndex) => {
+                                let cellValue = col.replace(/"/g, '').trim();
+                                
+                                // Jika ini adalah kolom nominal (misalnya kolom ke-6 atau indeks 5), 
+                                // kita beri warna merah dan tebal agar langsung ditangkap oleh mental model pengguna sebagai 'tagihan'.
+                                // (Anda bisa mengubah angka 5 ini sesuai urutan kolom 'Nominal Telat' Anda, dihitung mulai dari 0)
+                                if (colIndex === 5) { 
+                                    tableHTML += `<td class="text-danger">Rp ${cellValue}</td>`;
+                                } else {
+                                    tableHTML += `<td>${cellValue}</td>`;
+                                }
+                            });
+                            tableHTML += '</tr>';
+                        }
                     }
                 });
-                
+                tableHTML += '</tbody>';
                 document.getElementById('tabel-data').innerHTML = tableHTML;
             })
-            .catch(error => console.error('Gagal mengambil data:', error));
+            .catch(error => {
+                console.error('Gagal mengambil data:', error);
+                document.getElementById('loading-text').innerHTML = 'Gagal memuat data. Pastikan link CSV sudah benar.';
+            });
     </script>
 
 </body>
