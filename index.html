@@ -3,20 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rekap Keterlambatan Kas Himpunan</title>
+    <title>Rekap Keterlambatan Kas Himpunan Software Engineering</title>
     <style>
-        /* Menggunakan CSS Variables untuk memudahkan manajemen warna (Color Palette) */
         :root {
             --bg-color: #f4f7f6;
             --text-color: #333333;
             --card-bg: #ffffff;
             --border-color: #e0e0e0;
             --header-bg: #4a90e2;
+            --header-hover: #357abd;
             --header-text: #ffffff;
-            --accent-color: #e74c3c; /* Warna merah untuk menyorot tagihan */
+            --accent-color: #e74c3c; 
+            --input-bg: #ffffff;
+            --input-border: #cccccc;
         }
 
-        /* Otomatis mendeteksi Dark Mode dari pengaturan HP/Laptop pengguna */
         @media (prefers-color-scheme: dark) {
             :root {
                 --bg-color: #121212;
@@ -24,16 +25,15 @@
                 --card-bg: #1e1e1e;
                 --border-color: #333333;
                 --header-bg: #2c3e50;
+                --header-hover: #1a252f;
                 --header-text: #e0e0e0;
                 --accent-color: #ff6b6b;
+                --input-bg: #2c2c2c;
+                --input-border: #444444;
             }
         }
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
 
         body {
             font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
@@ -53,20 +53,31 @@
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
         }
 
-        h2 {
-            text-align: center;
-            margin-bottom: 8px;
-            font-weight: 600;
+        h2 { text-align: center; margin-bottom: 8px; font-weight: 600; }
+        p.subtitle { text-align: center; margin-bottom: 25px; font-size: 0.9em; opacity: 0.8; }
+
+        
+        .search-container {
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: flex-end;
         }
 
-        p.subtitle {
-            text-align: center;
-            margin-bottom: 25px;
-            font-size: 0.9em;
-            opacity: 0.8;
+        #searchInput {
+            width: 100%;
+            max-width: 300px;
+            padding: 10px 15px;
+            border-radius: 8px;
+            border: 1px solid var(--input-border);
+            background-color: var(--input-bg);
+            color: var(--text-color);
+            font-size: 1em;
+            outline: none;
+            transition: border-color 0.3s;
         }
 
-        /* Membuat tabel bisa digeser (scroll) ke samping di layar HP */
+        #searchInput:focus { border-color: var(--header-bg); }
+
         .table-responsive {
             overflow-x: auto;
             border-radius: 8px;
@@ -76,7 +87,7 @@
         table {
             width: 100%;
             border-collapse: collapse;
-            white-space: nowrap; /* Mencegah teks turun ke bawah dan merusak layout */
+            white-space: nowrap; 
         }
 
         th, td {
@@ -92,98 +103,168 @@
             text-transform: uppercase;
             font-size: 0.85em;
             letter-spacing: 0.5px;
+            cursor: pointer;
+            user-select: none;
+            transition: background-color 0.2s;
         }
 
-        tr:last-child td {
-            border-bottom: none;
-        }
+        th:hover { background-color: var(--header-hover); }
 
-        tbody tr:hover {
-            background-color: rgba(0, 0, 0, 0.02);
-        }
+        th span.sort-icon { margin-left: 5px; font-size: 0.9em; opacity: 0.6; }
+        th.active span.sort-icon { opacity: 1; }
+
+        tr:last-child td { border-bottom: none; }
+        tbody tr:hover { background-color: rgba(0, 0, 0, 0.02); }
 
         @media (prefers-color-scheme: dark) {
-            tbody tr:hover {
-                background-color: rgba(255, 255, 255, 0.05);
-            }
+            tbody tr:hover { background-color: rgba(255, 255, 255, 0.05); }
         }
 
-        /* Class khusus untuk menyorot angka tagihan agar lebih tegas */
-        .text-danger {
-            color: var(--accent-color);
-            font-weight: bold;
-        }
-        
-        .loading {
-            text-align: center;
-            padding: 30px;
-            font-style: italic;
-            opacity: 0.7;
-        }
+        .text-danger { color: var(--accent-color); font-weight: bold; }
+        .loading { text-align: center; padding: 30px; font-style: italic; opacity: 0.7; }
+        .no-data { text-align: center; padding: 20px; font-weight: bold; }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <h2>Daftar Keterlambatan Kas</h2>
-        <p class="subtitle">Data di bawah ini tersinkronisasi secara otomatis.</p>
+        <h2>Daftar Keterlambatan Kas HIMSE</h2>
+        <p class="subtitle">Silahkan scroll ke kanan kalau nominal tidak kelihatan, untuk pc scroll bar ada di bawah</p>
+
+        <div class="search-container">
+            <input type="text" id="searchInput" placeholder="Cari nama anggota...">
+        </div>
 
         <div class="table-responsive">
             <table id="tabel-data">
-                <div id="loading-text" class="loading">Memuat data secara real-time...</div>
+                <thead>
+                    <tr id="table-header">
+                        </tr>
+                </thead>
+                <tbody id="table-body">
+                    <tr><td colspan="10" class="loading" id="loading-text">Memuat data secara real-time...</td></tr>
+                </tbody>
             </table>
         </div>
     </div>
 
     <script>
-        // GANTI URL DI BAWAH INI DENGAN LINK CSV DARI GOOGLE SHEETS ANDA
         const csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTrif12Yy8eQx-OCnB8yZTwoumpGFUdPtYJNVftjQ4_4kZEzfsrcpJe7w6FY-_iGmCbGxqRJqC3ylMh/pub?gid=0&single=true&output=csv'; 
+        
+        let globalHeaders = [];
+        let globalData = [];
+        let currentSortColumn = -1;
+        let isAscending = true;
 
         fetch(csvUrl)
             .then(response => response.text())
             .then(data => {
-                document.getElementById('loading-text').style.display = 'none';
-                const rows = data.split('\n');
-                let tableHTML = '';
+                const rows = data.split('\n').filter(row => row.trim() !== '');
                 
-                rows.forEach((row, index) => {
-                    const columns = row.split(','); 
+                if (rows.length > 0) {
+                    globalHeaders = rows[0].split(',').map(col => col.replace(/"/g, '').trim());
                     
-                    if (columns.length > 1 && row.trim() !== '') {
-                        if (index === 0) {
-                            // Membuat Header Tabel
-                            tableHTML += '<thead><tr>';
-                            columns.forEach(col => {
-                                tableHTML += `<th>${col.replace(/"/g, '').trim()}</th>`;
-                            });
-                            tableHTML += '</tr></thead><tbody>';
-                        } else {
-                            // Membuat Isi Tabel
-                            tableHTML += '<tr>';
-                            columns.forEach((col, colIndex) => {
-                                let cellValue = col.replace(/"/g, '').trim();
-                                
-                                // Jika ini adalah kolom nominal (misalnya kolom ke-6 atau indeks 5), 
-                                // kita beri warna merah dan tebal agar langsung ditangkap oleh mental model pengguna sebagai 'tagihan'.
-                                // (Anda bisa mengubah angka 5 ini sesuai urutan kolom 'Nominal Telat' Anda, dihitung mulai dari 0)
-                                if (colIndex === 5) { 
-                                    tableHTML += `<td class="text-danger">Rp ${cellValue}</td>`;
-                                } else {
-                                    tableHTML += `<td>${cellValue}</td>`;
-                                }
-                            });
-                            tableHTML += '</tr>';
-                        }
+                    for (let i = 1; i < rows.length; i++) {
+                        const columns = rows[i].split(',').map(col => col.replace(/"/g, '').trim());
+                        globalData.push(columns);
                     }
-                });
-                tableHTML += '</tbody>';
-                document.getElementById('tabel-data').innerHTML = tableHTML;
+                    
+                    renderHeaders();
+                    renderTable(globalData);
+                }
             })
             .catch(error => {
                 console.error('Gagal mengambil data:', error);
                 document.getElementById('loading-text').innerHTML = 'Gagal memuat data. Pastikan link CSV sudah benar.';
             });
-    </script>
 
+        function renderHeaders() {
+            const headerRow = document.getElementById('table-header');
+            headerRow.innerHTML = '';
+            
+            globalHeaders.forEach((header, index) => {
+                const th = document.createElement('th');
+                th.innerHTML = `${header} <span class="sort-icon">↕</span>`;
+                
+                th.onclick = () => sortData(index);
+                
+                if (currentSortColumn === index) {
+                    th.className = 'active';
+                    th.innerHTML = `${header} <span class="sort-icon">${isAscending ? '↑' : '↓'}</span>`;
+                }
+                headerRow.appendChild(th);
+            });
+        }
+
+        function renderTable(dataToRender) {
+            const tbody = document.getElementById('table-body');
+            tbody.innerHTML = '';
+
+            if (dataToRender.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="10" class="no-data">Tidak ada data anggota yang ditemukan.</td></tr>';
+                return;
+            }
+
+            dataToRender.forEach(columns => {
+                let tr = document.createElement('tr');
+                columns.forEach((cellValue, colIndex) => {
+                    let td = document.createElement('td');
+                    if (colIndex === 5) {
+                        td.className = 'text-danger';
+                        td.textContent = `Rp ${cellValue}`;
+                    } else {
+                        td.textContent = cellValue;
+                    }
+                    tr.appendChild(td);
+                });
+                tbody.appendChild(tr);
+            });
+        }
+
+        document.getElementById('searchInput').addEventListener('input', function(e) {
+            const searchTerm = e.target.value.toLowerCase();
+            
+            const filteredData = globalData.filter(row => {
+                const nama = row[0] ? row[0].toLowerCase() : '';
+                return nama.includes(searchTerm);
+            });
+            
+            renderTable(filteredData);
+        });
+
+        function sortData(columnIndex) {
+            if (currentSortColumn === columnIndex) {
+                isAscending = !isAscending;
+            } else {
+                currentSortColumn = columnIndex;
+                isAscending = true;
+            }
+
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            let dataToSort = globalData.filter(row => {
+                const nama = row[0] ? row[0].toLowerCase() : '';
+                return nama.includes(searchTerm);
+            });
+
+            dataToSort.sort((a, b) => {
+                let valA = a[columnIndex] ? a[columnIndex].toLowerCase() : '';
+                let valB = b[columnIndex] ? b[columnIndex].toLowerCase() : '';
+
+                const numA = parseFloat(valA.replace(/[^0-9.-]+/g,""));
+                const numB = parseFloat(valB.replace(/[^0-9.-]+/g,""));
+                
+                if (!isNaN(numA) && !isNaN(numB)) {
+                    return isAscending ? numA - numB : numB - numA;
+                }
+
+                if (valA < valB) return isAscending ? -1 : 1;
+                if (valA > valB) return isAscending ? 1 : -1;
+                return 0;
+            });
+
+            renderHeaders();
+            renderTable(dataToSort);
+        }
+    </script>
 </body>
 </html>
